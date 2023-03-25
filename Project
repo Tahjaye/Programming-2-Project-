@@ -1,6 +1,6 @@
 /*
-Programmer: Tahjaye Alex Edwards, Jordayne Price, Lilly Whyte, Jahzeal Simms,
-ID#              2206688                            2206858       2202446
+Programmers: Tahjaye Alex Edwards, Jordayne Price, Lilly Whyte, Jahzeal Simms,
+ID#                2206688                           2206858       2202446
 Date: March 29th 2023
 Description:
 */
@@ -55,7 +55,7 @@ enum YesOrNo {YES=1 , NO=0};
 //function prototypes
 void displayMainMenu();
 Customer accept_customer_info(Customer*, Customer*, int);
-bool real_license_Plate(char*);
+bool real_license_Plate(char[7]);
 void displayServiceMenu();
 float serviceOptions(int*);
 void displayCustomerInfo();
@@ -63,7 +63,9 @@ void getCustomerServices(int*);
 void store_To_File(Customer);
 void populate_wash_bay(Customer *customer, Customer *wash_Bay);
 void clear_wash_bay(Customer *customer, Customer *wash_Bay);
-
+void returningCustomers();
+void findReturning(Customer[99],int);
+void displayReturning(Customer[99], Customer[99], int[99], int,int);
 
 
 static int idx=0;// the main index value that contols the flow of the program
@@ -73,10 +75,10 @@ static int num_washbay=0;//stores the number of cars in the wash bay
 
 int main()
 {
-    if (fopen("Customers.txt", "a")==NULL){//checks if the file already exists
-        fh_output = fopen("Customers.txt", "w");//If not it creates a blank file called Customers to store customer details
-        fclose(fh_output);//closes the file
-    }
+    //checks if the file already exists
+    fh_output = fopen("Customers.txt", "a+");//If not it creates a blank file called Customers to store customer details
+    fclose(fh_output);//closes the file
+
 
 
     // Initialize Struct variables as pointers then allocates memory for them as arrays
@@ -119,7 +121,7 @@ int main()
             clear_wash_bay(customer, wash_Bay);
             break;
         case 3:
-
+            returningCustomers();
             break;
         case 4:
 
@@ -175,20 +177,23 @@ Customer accept_customer_info(Customer *customer,Customer *wash_Bay,int num_cust
 
     // Get customer information
     printf("Enter customer information:\n");
+    fflush(stdin);
     printf("Enter the Customers name: ");
-    scanf("%s", &customer->name);
-
+    scanf("%[^\n]s", customer->name);
     do{//validates the licenes plate
-        printf("License plate number (4 digits and 2 capital letters): ");
-        scanf("%s", &customer->license_plate);
+        fflush(stdin);
+        printf("\nLicense plate number (4 digits a space and 2 capital letters) (7777 TE): ");
+        scanf("%[^\n]s", customer->license_plate);
     }while(real_license_Plate(customer->license_plate)== false);
 
     do{//vaidates the payment option
-    printf("\nPayment method:"
-            "\n(1)CASH" "\n(2)CARD\n");
-    scanf("%d", &customer->payment_method);
-    if(customer->payment_method!=CASH && customer->payment_method!=CARD)
-        printf("Invalid Payment Option, Try again");
+        fflush(stdin);
+        printf("\nPayment method:"
+                "\n(1)CASH" "\n(2)CARD\n");
+        scanf("%d", &customer->payment_method);
+        if(customer->payment_method!=CASH && customer->payment_method!=CARD){
+            printf("Invalid Payment Option, Try again");
+        }
     }while(customer->payment_method!=CASH && customer->payment_method!=CARD);
 
     // Add selected services and calculate total cost
@@ -211,7 +216,7 @@ Customer accept_customer_info(Customer *customer,Customer *wash_Bay,int num_cust
                 customer->cost = serviceOptions(customer->services);
                 customer->totalCost+=customer->cost;
 
-                for (int j = 0; j <= i-1; j++) {
+                for (int j = 0; j < i; j++) {
                     if (customer->services[i] == customer->services[j]) {
                         // Display error message and repeat if service is already selected
                         printf("\nService already selected-> Please try again->\n");
@@ -254,11 +259,13 @@ Customer accept_customer_info(Customer *customer,Customer *wash_Bay,int num_cust
 //validates the license plate
 bool real_license_Plate(char license_Plate[7]){
     int i=0;
+
     if (strlen(license_Plate)!=7){
         printf("\aInvalid License Plate\n");
         printf("Size must be (7)->four integers a space ' ' and two capital letters (7777 TE)\n");
         return false;
     }
+
     for(i=0;i<4;i++){
         if (!isdigit(license_Plate[i])){
             printf("\aInvalid License Plate\n");
@@ -404,24 +411,31 @@ void populate_wash_bay(Customer *customer, Customer *wash_Bay){
     Customer *temp;// array to store customer details
     temp = (Customer*)calloc(MAXSIZE+WASHSIZE,sizeof(Customer));//creates an Customer array with 23 elements (basically)
 
-
+    //whats happening here is the we are moving the first three cars to the wash bay them we move the other cars up in the line
     if(num_washbay==WASHSIZE){
-
+        //this moves the first three cars to the wash bay
         for (i=0;i<WASHSIZE;i++){
             *wash_Bay = *customer;
             wash_Bay++;
             customer++;
         }
-        *customer = cust;
+        *customer = cust;//simply resets the pointer to the begining of the array, necessary because we incremented it
         *wash_Bay = wash;
 
+        //this sets the customers array of size 20 to the first 20 elements of the temp array leaving the last three blank(which is important)
         for(i=0;i<MAXSIZE;i++){
             *temp = *customer;
             customer++;
         }
         *customer = cust;
 
-        temp+=3;
+        temp+=3;//increments the temp pointer by three which puts the start of the array at the 4th element
+        //which is obvious because the first three cars went to the wash bay
+        //this is also why this array was initialized as size 23, so now the temp array is of size 20, same as customer
+
+        //reassignes the new customer array which is just the original shifted three elements to the right
+        //note that three spaces have been freed from the customers array because index's [17],[18]and[19] will now be blank
+        //and all the other cars will have mooved closer to the begining of the array or line
         for(i=0;i<MAXSIZE;i++){
             *customer = *temp;
             customer++;
@@ -462,6 +476,94 @@ void clear_wash_bay(Customer *customer, Customer *wash_Bay){
         }
     }
 
+
+    return;
+}
+//this function simple stores all the data from the file to a buffer array
+void returningCustomers(){
+    Customer temp1;//used as a reading destination
+    Customer bufferarr[99];//stores all the customers that visit the car wash
+    int i=0;
+    fh_output = fopen("Customers.txt", "r");//opens the file for reading
+
+    while(fread(&temp1, sizeof(Customer), 1, fh_output)){//continuously reads the file for the written Customer sized structs
+        bufferarr[i] = temp1;
+        i++;
+    }
+    fclose(fh_output);//closes the file
+    findReturning(bufferarr,i);
+
+    return;
+}
+//this function just finds the license plates that apear in the file more than once
+void findReturning(Customer bufferarr[99],int count){
+    Customer returning[99];// stores the info of the individually returning customers
+    int frequency[99], fidx=0;
+    bool duplicate = false;
+    int j=0,i=0;
+    for(j=0;j<i;j++){
+        duplicate = false;
+        for(i=0;i<count;i++){
+            for(int k=0;k<count;k++){
+                if(bufferarr[j].license_plate == returning[k].license_plate && j!=k){
+                    duplicate= true;
+                }
+            }
+            if(duplicate == true){
+                break;
+            }
+            if(bufferarr[j].license_plate == bufferarr[i].license_plate && j!=i){
+                returning[fidx]= bufferarr[j];
+                frequency[fidx]+=1;
+            }
+
+        }
+        if(duplicate==false){
+            fidx+=1;
+        }
+    }
+    displayReturning(returning, bufferarr, frequency, fidx, count);
+    return;
+}
+//this function prints the information for the returning customers
+void displayReturning(Customer returning[99], Customer bufferarr[99], int frequency[99], int i,int count){
+    float totalSpent=0;
+    int mostFrequent=frequency[0], mostFrequentIdx=0;
+
+    //finding the returning customers Grand totals
+    printf("\nThe Returning Customers are:\n");
+    for(int j=0;j<i;j++){
+        totalSpent=0;
+        for(int k=0;k<count;k++){
+            if(returning[j].license_plate==bufferarr[k].license_plate){
+                totalSpent+=bufferarr[k].totalCost;
+            }
+        }
+        printf("\nName: %s",returning[j].name);
+        printf("\nLicense Plate: %s", returning[j].license_plate);
+        printf("\nGrand Total Spent $%.2f", totalSpent);
+        printf("\nFrequency: %d",frequency[j]);
+        printf("\n\n");
+    }
+    //finding the most returning customers
+    printf("\n\nThe most Returning Customer is: ");
+    for(int j=1;j<i;j++){
+        if(mostFrequent<frequency[j]){
+            mostFrequent=frequency[j];
+            mostFrequentIdx =j;//finding the index of the highest returning customer
+        }
+    }
+    printf("\nName: %s",returning[mostFrequentIdx].name);
+    printf("\nLicense Plate: %s", returning[mostFrequentIdx].license_plate);
+    totalSpent=0;
+    for(int k=0;k<count;k++){
+        if(returning[mostFrequentIdx].license_plate==bufferarr[k].license_plate){
+            totalSpent+=bufferarr[k].totalCost;
+        }
+    }
+    printf("\nGrand Total Spent $%.2f", totalSpent);
+    printf("\nFrequency: %d",frequency[mostFrequentIdx]);
+    printf("\n\n");
 
     return;
 }
